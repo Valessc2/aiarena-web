@@ -40,10 +40,6 @@ export default function MatchInfo(props: MatchInfoProps) {
         started
         status
         created
-        requestedBy {
-          username
-          id
-        }
       }
     `,
     props.match
@@ -55,6 +51,32 @@ export default function MatchInfo(props: MatchInfoProps) {
         <h3 className="text-lg sm:text-xl font-semibold text-white mb-1">
           Match Information
         </h3>
+      </div>
+
+      <div className="rounded-lg border border-neutral-700 bg-neutral-900/60 p-4 space-y-2 text-sm sm:text-base text-gray-200">
+        <div className="flex gap-2">
+          <dt className="w-32 text-gray-400">Competition</dt>
+          <dd>
+            <a
+              href={`/competitions/${getIDFromBase64(match.round?.competition.id, "CompetitionType")}`}
+              className="text-customGreen hover:underline"
+            >
+              {match.round?.competition.name}
+            </a>
+          </dd>
+        </div>
+
+        <div className="flex gap-2">
+          <dt className="w-32 text-gray-400">Round</dt>
+          <dd>
+            <a
+              href={`/rounds/${getIDFromBase64(match.round?.id, "RoundType")}`}
+              className="text-customGreen hover:underline"
+            >
+              {match.round?.number}
+            </a>
+          </dd>
+        </div>
       </div>
 
       <div className="rounded-lg border border-neutral-700 bg-neutral-900/60 p-4 space-y-2 text-sm sm:text-base text-gray-200">
@@ -114,60 +136,6 @@ export default function MatchInfo(props: MatchInfoProps) {
             <a href={`${match.map.downloadLink}`}>{match.map.name || "--"} </a>
           </dd>
         </div>
-      </div>
-
-      <div className="rounded-lg border border-neutral-700 bg-neutral-900/60 p-4 space-y-2 text-sm sm:text-base text-gray-200">
-        <div className="flex gap-2">
-          <dt className="w-32 text-gray-400">Origin</dt>
-          <dd>
-            {match.round?.competition.name
-              ? "Competition"
-              : match.requestedBy?.id
-                ? "Match Request"
-                : "Unknown"}
-          </dd>
-        </div>
-        {match.round?.competition && (
-          <>
-            <div className="flex gap-2">
-              <dt className="w-32 text-gray-400">Competition</dt>
-              <dd>
-                <a
-                  href={`/competitions/${getIDFromBase64(match.round?.competition.id, "CompetitionType")}`}
-                  className="text-customGreen hover:underline"
-                >
-                  {match.round?.competition.name}
-                </a>
-              </dd>
-            </div>
-
-            <div className="flex gap-2">
-              <dt className="w-32 text-gray-400">Round</dt>
-              <dd>
-                <a
-                  href={`/rounds/${getIDFromBase64(match.round?.id, "RoundType")}`}
-                  className="text-customGreen hover:underline"
-                >
-                  {match.round?.number}
-                </a>
-              </dd>
-            </div>
-          </>
-        )}
-        {match.requestedBy && (
-          <>
-            <div className="flex gap-2">
-              <dt className="w-32 text-gray-400">Requested By</dt>
-              <dd>
-                <a
-                  href={`/authors/${getIDFromBase64(match.requestedBy.id, "UserType")}`}
-                >
-                  {match.requestedBy.username}
-                </a>
-              </dd>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

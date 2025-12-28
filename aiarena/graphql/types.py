@@ -16,6 +16,7 @@ from django.utils import timezone
 import django_filters
 import graphene
 from avatar.models import Avatar
+from discord_bind.models import DiscordUser
 from django_filters import FilterSet, OrderingFilter
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
@@ -23,13 +24,11 @@ from graphql_relay import from_global_id
 from rest_framework.authtoken.models import Token
 
 from aiarena.core import models
-from aiarena.core.models import BotRace, Match, MatchParticipation, Result, User
+from aiarena.core.models import BotRace, MatchParticipation, Result, User
 from aiarena.core.models.result import STEPS_PER_SECOND
 from aiarena.core.services import Ladders, MatchRequests, SupporterBenefits, Users
-from aiarena.core.services.internal.statistics.elo_graphs_generator import EloGraphsGenerator
 from aiarena.frontend.templatetags.url_utils import get_absolute_url
 from aiarena.frontend.views.bot_detail import RelativeResultFilter
-from aiarena.graphql.chart_types import EloChartType, RaceMatchupBreakdownType, WinrateChartType
 from aiarena.graphql.common import CountingConnection, DjangoObjectTypeWithUID
 
 
@@ -209,27 +208,6 @@ class CompetitionType(DjangoObjectTypeWithUID):
         return root.get_wiki_article().current_revision.content
 
 
-class CompetitionBotMapStatsFilterSet(FilterSet):
-    order_by = OrderingFilter(
-        fields=[
-            "map__name",
-            "match_count",
-            "win_count",
-            "win_perc",
-            "loss_count",
-            "loss_perc",
-            "tie_count",
-            "tie_perc",
-            "crash_count",
-            "crash_perc",
-        ],
-    )
-
-    class Meta:
-        model = models.CompetitionBotMapStats
-        fields = ["order_by"]
-
-
 class CompetitionBotMapStatsType(DjangoObjectTypeWithUID):
     class Meta:
         model = models.CompetitionBotMapStats
@@ -246,30 +224,8 @@ class CompetitionBotMapStatsType(DjangoObjectTypeWithUID):
             "crash_perc",
             "updated",
         ]
-        filterset_class = CompetitionBotMapStatsFilterSet
+        filter_fields = []
         connection_class = CountingConnection
-
-
-class CompetitionBotMatchupStatsFilterSet(FilterSet):
-    order_by = OrderingFilter(
-        fields=[
-            "opponent__bot__name",
-            "opponent__bot__plays_race__label",
-            "match_count",
-            "win_count",
-            "win_perc",
-            "loss_count",
-            "loss_perc",
-            "tie_count",
-            "tie_perc",
-            "crash_count",
-            "crash_perc",
-        ],
-    )
-
-    class Meta:
-        model = models.CompetitionBotMatchupStats
-        fields = ["order_by"]
 
 
 class CompetitionBotMatchupStatsType(DjangoObjectTypeWithUID):
@@ -288,7 +244,7 @@ class CompetitionBotMatchupStatsType(DjangoObjectTypeWithUID):
             "crash_perc",
             "updated",
         ]
-        filterset_class = CompetitionBotMatchupStatsFilterSet
+        filter_fields = []
         connection_class = CountingConnection
 
 
@@ -317,16 +273,8 @@ class CompetitionParticipationFilterSet(FilterSet):
 
 class CompetitionParticipationType(DjangoObjectTypeWithUID):
     trend = graphene.Int()
-    competition_map_stats = DjangoFilterConnectionField(
-        "aiarena.graphql.CompetitionBotMapStatsType", filterset_class=CompetitionBotMapStatsFilterSet
-    )
-    competition_matchup_stats = DjangoFilterConnectionField(
-        "aiarena.graphql.CompetitionBotMatchupStatsType", filterset_class=CompetitionBotMatchupStatsFilterSet
-    )
-
-    elo_chart_data = graphene.Field(EloChartType)
-    winrate_chart_data = graphene.Field(WinrateChartType)
-    race_matchup = graphene.Field(RaceMatchupBreakdownType)
+    competition_map_stats = DjangoConnectionField("aiarena.graphql.CompetitionBotMapStatsType")
+    competition_matchup_stats = DjangoConnectionField("aiarena.graphql.CompetitionBotMatchupStatsType")
 
     class Meta:
         model = models.CompetitionParticipation
@@ -337,8 +285,6 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
             "win_count",
             "loss_perc",
             "loss_count",
-            "tie_perc",
-            "tie_count",
             "crash_perc",
             "crash_count",
             "highest_elo",
@@ -372,131 +318,20 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
             .select_related("opponent__bot", "opponent__bot__plays_race")
         )
 
-    @staticmethod
-    def resolve_elo_chart_data(root, info, **args):
-        competition = root.competition
-        if competition.statistics_finalized:
-            return None
 
-        gen = EloGraphsGenerator(root)
-        elo_data = gen._get_elo_data(root.bot, competition.id)
-
-        if not elo_data:
-            last_updated = None
-            datasets = []
-
-        else:  # only show the last updated if its within the date range
-            xs_ms = [e[2].timestamp() * 1000 for e in elo_data]
-            min_x, max_x = min(xs_ms), max(xs_ms)
-
-            ##
-            dt = gen._get_graph_update_line_datetime(root.bot, competition.id)
-            candidate_last_updated = dt.timestamp() * 1000 if dt else None
-
-            # request = info.context
-            # user = getattr(request, "user", None)
-
-            # if user and user.is_authenticated:
-            #     if (
-            #         user.is_superuser
-            #         or (
-            #             root.bot.user == user
-            #             and getattr(user, "patreon_level", "none") != "none"
-            #         )
-            #     ):
-            #         dt = gen._get_graph_update_line_datetime(root.bot, competition.id)
-            #         last_updated = dt.timestamp() * 1000 if dt else None
-
-            # Only keep it if it's within the data range
-            if candidate_last_updated is not None and min_x <= candidate_last_updated <= max_x:
-                last_updated = candidate_last_updated
-            else:
-                last_updated = None
-
-            datasets = [
-                {
-                    "label": "ELO",
-                    "backgroundColor": "#86c232",
-                    "borderColor": "#86c232",
-                    "data": [{"x": x, "y": e[1]} for x, e in zip(xs_ms, elo_data)],
-                }
-            ]
-
-        return {
-            "title": "ELO over time",
-            "lastUpdated": last_updated,
-            "data": {"datasets": datasets},
-        }
-
-    @staticmethod
-    def resolve_winrate_chart_data(root, info, **args):
-        competition = root.competition
-        if competition.statistics_finalized:
-            return None
-
-        gen = EloGraphsGenerator(root)
-        data = gen._get_winrate_data(root.bot.id, competition.id)
-
-        with_total = [(d, w, l, c, t, (w + l + c + t)) for d, w, l, c, t in data]
-
-        labels = [f"{x[0]}-{x[0] + 5}" for x in with_total]
-        if labels and labels[-1] == "30-35":
-            labels[-1] = "30+"
-
-        def pct(p, total):
-            return f"{round((p / total if total else 0) * 100)}%"
-
-        def ds(label, idx, color):
-            return {
-                "label": label,
-                "data": [x[idx] for x in with_total],
-                "backgroundColor": color,
-                "extraLabels": [pct(x[idx], x[5]) for x in with_total],
-                "datalabels": {"align": "center", "anchor": "center"},
-            }
-
-        return {
-            "title": "Result vs Match Duration",
-            "data": {
-                "labels": labels,
-                "datasets": [
-                    ds("Wins", 1, "#86C232"),
-                    ds("Losses", 2, "#D20044"),
-                    ds("Ties", 4, "#DFCE00"),
-                    ds("Crashes", 3, "#AAAAAA"),
-                ],
-            },
-        }
-
-    @staticmethod
-    def resolve_race_matchup(root, info, **args):
-        competition = root.competition
-        if competition.statistics_finalized:
-            return None
-
-        gen = EloGraphsGenerator(root)
-        rows = gen._get_race_outcome_breakdown_data(root.bot.id, competition.id)
-        breakdown = gen._race_outcome_breakdown(rows)
-
-        def normalize(d):
-            return {
-                "wins": d.get("wins", 0),
-                "losses": d.get("losses", 0),
-                "ties": d.get("ties", 0),
-                "crashes": d.get("crashes", 0),
-                "played": d.get("played", 0),
-                "winRate": d.get("winRate", 0.0),
-                "lossRate": d.get("lossRate", 0.0),
-                "tieRate": d.get("tieRate", 0.0),
-                "crashRate": d.get("crashRate", 0.0),
-            }
-
-        return {
-            "zerg": normalize(breakdown.get("Z", {})),
-            "protoss": normalize(breakdown.get("P", {})),
-            "terran": normalize(breakdown.get("T", {})),
-            "random": normalize(breakdown.get("R", {})),
-        }
+class DiscordUserType(DjangoObjectTypeWithUID):
+    class Meta:
+        model = DiscordUser
+        fields = (
+            "id",
+            "uid",
+            "username",
+            "discriminator",
+            "avatar",
+            "email",
+            "scope",
+            "expiry",
+        )
 
 
 class MatchParticipationFilterSet(FilterSet):
@@ -933,8 +768,6 @@ class StatsType(graphene.ObjectType):
     random_supporter = graphene.Field("aiarena.graphql.UserType")
     build_number = graphene.String()
     date_time = graphene.DateTime()
-    matches_queued = graphene.Int()
-    matches_started = graphene.Int()
 
     @staticmethod
     def resolve_match_count_1h(root, info, **args):
@@ -959,20 +792,6 @@ class StatsType(graphene.ObjectType):
     @staticmethod
     def resolve_date_time(root, info, **args):
         return timezone.now()
-
-    @staticmethod
-    def resolve_matches_queued(root, info, **args):
-        return Match.objects.filter(
-            result__isnull=True,
-            started__isnull=True,
-        ).count()
-
-    @staticmethod
-    def resolve_matches_started(root, info, **args):
-        return Match.objects.filter(
-            result__isnull=True,
-            started__isnull=False,
-        ).count()
 
 
 class TrophyType(DjangoObjectTypeWithUID):

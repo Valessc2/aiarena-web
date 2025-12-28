@@ -49,7 +49,6 @@ export default function MatchInfo(props: MatchDecalProps) {
           participant1 {
             eloChange
             id
-            matchLog
             bot {
               name
               id
@@ -62,7 +61,6 @@ export default function MatchInfo(props: MatchDecalProps) {
           participant2 {
             eloChange
             id
-            matchLog
             bot {
               id
               name
@@ -146,7 +144,7 @@ export default function MatchInfo(props: MatchDecalProps) {
               )}
             </span>
 
-            {match.result?.replayFile && (
+            {match.result?.replayFile ? (
               <div className="w-full flex justify-end">
                 <a
                   download
@@ -156,43 +154,18 @@ export default function MatchInfo(props: MatchDecalProps) {
                   <ArrowDownCircleIcon height={18} /> Replay
                 </a>
               </div>
-            )}
-            {match.result?.arenaclientLog && (
+            ) : null}
+            {match.result?.arenaclientLog ? (
               <div className="w-full flex justify-end">
                 <a
                   download
                   href={`${match.result.arenaclientLog}`}
                   className="text-customGreen hover:underline whitespace-nowrap text-lg flex items-center gap-1"
                 >
-                  <ArrowDownCircleIcon height={18} /> Arenaclient Logs
+                  <ArrowDownCircleIcon height={18} /> Logs
                 </a>
               </div>
-            )}
-
-            {match.result?.participant1?.matchLog && (
-              <div className="w-full flex justify-end">
-                <a
-                  download
-                  href={`/${match.result?.participant1?.matchLog}`}
-                  className="text-customGreen hover:underline whitespace-nowrap text-lg flex items-center gap-1"
-                >
-                  <ArrowDownCircleIcon height={18} />{" "}
-                  {match.result?.participant1.bot.name} Logs
-                </a>
-              </div>
-            )}
-            {match.result?.participant2?.matchLog && (
-              <div className="w-full flex justify-end">
-                <a
-                  download
-                  href={`/${match.result?.participant2?.matchLog}`}
-                  className="text-customGreen hover:underline whitespace-nowrap text-lg flex items-center gap-1"
-                >
-                  <ArrowDownCircleIcon height={18} />{" "}
-                  {match.result?.participant2.bot.name} Logs
-                </a>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -244,12 +217,12 @@ export default function MatchInfo(props: MatchDecalProps) {
           </div>
 
           {/* Participant 2 */}
-          <div className="font-medium flex flex-col items-center md:items-end gap-1 min-w-0">
+          <div className="flex flex-col items-center md:items-end gap-1 min-w-0">
             {mp2 && (
               <>
                 <a
                   href={`/bots/${getIDFromBase64(mp2.id, "BotType")}`}
-                  className="text-white hover:text-customGreen truncate max-w-[180px] sm:max-w-xs text-xl"
+                  className="font-medium text-white hover:text-customGreen truncate max-w-[180px] sm:max-w-xs text-xl"
                 >
                   {formatWinnerName(winner?.name, mp2.name)}
                 </a>

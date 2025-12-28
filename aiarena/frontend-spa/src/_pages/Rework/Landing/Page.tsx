@@ -80,18 +80,12 @@ function CompetitionsAndActivity() {
           fallback={
             <div>
               <DisplaySkeletonBlockWithTitle bodyHeight={500} />
-            </div>
-          }
-        >
-          <LegacyCompetitonTop10List />
-        </Suspense>
-        <Suspense
-          fallback={
-            <div>
+              <div className="py-6"></div>
               <DisplaySkeletonBlockWithTitle bodyHeight={730} />
             </div>
           }
         >
+          <LegacyCompetitonTop10List />
           <LegacyActivityList />
         </Suspense>
       </div>

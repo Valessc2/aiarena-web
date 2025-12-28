@@ -20,7 +20,6 @@ export default function ActiveCompetitions(props: ActiveCompetitionsProps) {
           first: $first
           after: $cursor
           status: $status
-          orderBy: "-date_created"
         ) @connection(key: "ActiveCompetitionsProps__activeCompetitions") {
           edges {
             node {

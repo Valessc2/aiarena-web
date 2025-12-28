@@ -13,8 +13,6 @@ const LegacyStats: React.FC = () => {
           dateTime
           matchCount1h
           matchCount24h
-          matchesQueued
-          matchesStarted
         }
       }
     `,
@@ -24,9 +22,11 @@ const LegacyStats: React.FC = () => {
   if (!data.stats) {
     return <FetchError type="stats" />;
   }
+  const { arenaclients, buildNumber, dateTime, matchCount1h, matchCount24h } =
+    data.stats;
 
-  const formattedDateTime = data.stats.dateTime
-    ? new Date(data.stats.dateTime).toLocaleString(undefined, {
+  const formattedDateTime = dateTime
+    ? new Date(dateTime).toLocaleString(undefined, {
         year: "numeric",
         month: "short",
         day: "2-digit",
@@ -35,21 +35,11 @@ const LegacyStats: React.FC = () => {
       })
     : "-";
 
-  const rows: { label: string; value: React.ReactNode; link?: string }[] = [
-    { label: "Build", value: data.stats.buildNumber ?? "-" },
-    {
-      label: "Arena Clients",
-      value: data.stats.arenaclients ?? 0,
-      link: "/arenaclients/",
-    },
-    {
-      label: "Match Queue",
-      value: data.stats.matchesQueued,
-      link: "/match-queue/",
-    },
-    { label: "Matches Playing", value: data.stats.matchesStarted },
-    { label: "Matches last hour", value: data.stats.matchCount1h ?? 0 },
-    { label: "Matches last 24h", value: data.stats.matchCount24h ?? 0 },
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Build", value: buildNumber ?? "-" },
+    { label: "Arena clients", value: arenaclients ?? 0 },
+    { label: "Matches last hour", value: matchCount1h ?? 0 },
+    { label: "Matches last 24h", value: matchCount24h ?? 0 },
     { label: "Server Time", value: formattedDateTime },
   ];
 
@@ -72,19 +62,7 @@ const LegacyStats: React.FC = () => {
                 idx % 2 ? "bg-darken-4" : "bg-darken"
               }`}
             >
-              <td className="pl-3 font-semibold">
-                {row.link ? (
-                  <a
-                    title={`${row.label}`}
-                    aria-label={`Navigate to ${row.label}`}
-                    href={`${row.link}`}
-                  >
-                    {row.label}
-                  </a>
-                ) : (
-                  row.label
-                )}
-              </td>
+              <td className="pl-3 font-semibold">{row.label}</td>
               <td className="pr-3 text-right">{row.value}</td>
             </tr>
           ))}

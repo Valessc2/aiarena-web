@@ -39,7 +39,6 @@ import { RenderRace } from "@/_components/_display/RenderRace";
 
 interface BotResultsTableProps {
   data: BotResultsTable_bot$key;
-  filterPreset?: { competitionId?: string; competitionName?: string };
 }
 
 type MatchParticipation = NonNullable<
@@ -129,8 +128,8 @@ export default function BotResultsTable(props: BotResultsTableProps) {
     gameTimeMax: undefined,
     matchType: undefined,
     mapName: undefined,
-    competitionId: props.filterPreset?.competitionId || undefined,
-    competitionName: props.filterPreset?.competitionName || undefined,
+    competitionId: undefined,
+    competitionName: undefined,
   });
 
   const { data, loadNext, hasNext, refetch } = usePaginationFragment(

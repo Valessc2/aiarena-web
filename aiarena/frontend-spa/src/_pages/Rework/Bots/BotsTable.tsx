@@ -29,7 +29,6 @@ import {
   BotsTable_node$key,
 } from "./__generated__/BotsTable_node.graphql";
 import RenderCodeLanguage from "@/_components/_display/RenderCodeLanguage";
-import { RenderRace } from "@/_components/_display/RenderRace";
 
 interface BotsTableProps {
   data: BotsTable_node$key;
@@ -121,7 +120,7 @@ export default function BotsTable(props: BotsTableProps) {
         id: "race",
         header: "Race",
         enableSorting: false,
-        cell: (info) => <RenderRace race={info.row.original.playsRace} />,
+        cell: (info) => info.getValue() || "N/A",
         meta: { priority: 1 },
       }),
       columnHelper.accessor((row) => row.type ?? "", {

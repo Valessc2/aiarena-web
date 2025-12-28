@@ -52,16 +52,13 @@ export default function App() {
         <Route path="*" element={<PageNotFound />} />
       </Route>
       <Route path="dashboard/rework">
-        <Route element={<RootLayout />}>
+        <Route element={<RootWithPaddingLayout />}>
+          <Route path="results" element={<ResultsPage />} />
+          <Route path="bots/:botId" element={<BotPage />} />
           <Route
             path="competitions/stats/:id/:slug?"
             element={<CompetitionParticipationPage />}
           />
-        </Route>
-
-        <Route element={<RootWithPaddingLayout />}>
-          <Route path="results" element={<ResultsPage />} />
-          <Route path="bots/:botId" element={<BotPage />} />
         </Route>
       </Route>
     </Routes>

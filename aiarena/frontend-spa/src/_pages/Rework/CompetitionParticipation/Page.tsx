@@ -1,21 +1,10 @@
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useParams } from "react-router";
 import LoadingSpinner from "@/_components/_display/LoadingSpinnerGray";
 import CompetitionParticipationStats from "./CompetitionParticipationStats";
-import {
-  statsSideNavbarLinks,
-  statsTopNavbarLinks,
-} from "./StatsSideNavbarLinks";
-import WithStatsSideButtons from "@/_components/_nav/WithStatsSideButtons";
-import WithTopButtons from "@/_components/_nav/WithTopButtons";
 
 export default function CompetitionParticipationPage() {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] =
-    useState<(typeof statsSideNavbarLinks)[number]["state"]>("overview");
-
-  const [activeTopTab, setActiveTopTab] =
-    useState<(typeof statsTopNavbarLinks)[number]["state"]>("elograph");
 
   if (!id) {
     return (
@@ -30,28 +19,10 @@ export default function CompetitionParticipationPage() {
       <h2 id="competition-participation-heading" className="sr-only">
         Competition Participation Stats
       </h2>
-      <WithStatsSideButtons
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        setActiveTopTab={setActiveTopTab}
-      >
-        <WithTopButtons
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          activeTopTab={activeTopTab}
-          setActiveTopTab={setActiveTopTab}
-        >
-          <Suspense fallback={<LoadingSpinner color="light-gray" />}>
-            <CompetitionParticipationStats
-              id={id}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              activeTopTab={activeTopTab}
-              setActiveTopTab={setActiveTopTab}
-            />
-          </Suspense>
-        </WithTopButtons>
-      </WithStatsSideButtons>
+
+      <Suspense fallback={<LoadingSpinner color="light-gray" />}>
+        <CompetitionParticipationStats id={id} />
+      </Suspense>
     </section>
   );
 }

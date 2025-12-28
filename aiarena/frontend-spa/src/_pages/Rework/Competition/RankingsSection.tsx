@@ -123,7 +123,7 @@ export default function RankingsSection({ competition }: RankingsSectionProps) {
     return result;
   }, [rankingsData]);
 
-  const columnHelper = useMemo(() => createColumnHelper<RankingsRow>(), []);
+  const columnHelper = createColumnHelper<RankingsRow>();
   const columns = useMemo(
     () => [
       columnHelper.display({
@@ -250,7 +250,6 @@ export default function RankingsSection({ competition }: RankingsSectionProps) {
           const original = info.row.original;
           if (original.__kind !== "participant") return null;
 
-          // return <StatsButton id={original.id} />;
           return withAtag(
             "View Stats",
             `/competitions/stats/${getIDFromBase64(
