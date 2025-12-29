@@ -1,10 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -18,14 +18,15 @@ class WasteRule:
       - top-level files only (no recursion) for V1
       - deterministic ordering
     """
+
     name: str
     allowed_root: Path
     root: Path
-    patterns: tuple[str, ...]          # e.g. ("*.png", "*.svg", "*.json")
-    keep_newest_n: int                 # keep newest N files
-    max_total_bytes: int               # cap total bytes for remaining files
-    max_age_days: int                  # delete files older than this many days
-    max_single_file_bytes: int = 0     # optional guardrail
+    patterns: tuple[str, ...]  # e.g. ("*.png", "*.svg", "*.json")
+    keep_newest_n: int  # keep newest N files
+    max_total_bytes: int  # cap total bytes for remaining files
+    max_age_days: int  # delete files older than this many days
+    max_single_file_bytes: int = 0  # optional guardrail
     top_level_only: bool = True
 
 
