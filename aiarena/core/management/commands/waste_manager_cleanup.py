@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -54,4 +54,16 @@ class Command(BaseCommand):
         )
 
         result = enforce(rule, apply=bool(opts["apply"]))
+
+
+        # Dry-run: make output unambiguous (do not claim deletions happened).
+
+        # In dry-run, 'would_delete' holds the count; 'deleted' stays 0.
+
+        if not bool(opts["apply"]) and "deleted" in result:
+
+            result["would_delete"] = int(result.get("deleted", 0))
+
+            result["deleted"] = 0
         self.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+
