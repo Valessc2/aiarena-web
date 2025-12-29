@@ -32,3 +32,10 @@ schema.graphql
 frontend/.next
 frontend/staticfiles
 frontend/node_modules
+# editable install artifacts
+aiarena.egg-info/
+
+
+# editable install artifacts
+aiarena.egg-info/
+
