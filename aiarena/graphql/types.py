@@ -21,7 +21,7 @@ from constance import config
 from django_filters import FilterSet, OrderingFilter
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
-from graphql_relay import from_global_id
+from graphql_relay import cursor_to_offset, from_global_id
 from rest_framework.authtoken.models import Token
 
 from aiarena.core import models
@@ -1843,6 +1843,14 @@ class Viewer(graphene.ObjectType):
         return root.is_superuser
 
 
+class CachedResultPage(list):
+    """Bounded cached result page that preserves the full connection count."""
+
+    def __init__(self, values=(), total_count=0):
+        super().__init__(values)
+        self.total_count = total_count
+
+
 class Query(graphene.ObjectType):
     bot_race = DjangoFilterConnectionField("aiarena.graphql.BotRaceType")
     bots = DjangoFilterConnectionField("aiarena.graphql.BotType")
@@ -1852,7 +1860,7 @@ class Query(graphene.ObjectType):
     match = DjangoFilterConnectionField("aiarena.graphql.MatchType")
     news = DjangoFilterConnectionField("aiarena.graphql.NewsType")
     node = graphene.relay.Node.Field()
-    results = DjangoFilterConnectionField("aiarena.graphql.ResultType")
+    results = DjangoConnectionField("aiarena.graphql.ResultType")
     rounds = DjangoFilterConnectionField("aiarena.graphql.RoundsType")
     stats = graphene.Field(StatsType)
     stats_for_admins = graphene.Field("aiarena.graphql.StatsForAdmins")
@@ -1892,7 +1900,7 @@ class Query(graphene.ObjectType):
 
     @staticmethod
     def resolve_results(root, info, **args):
-        return (
+        queryset = (
             models.Result.objects.all()
             .order_by("-created")
             .select_related(
@@ -1912,6 +1920,46 @@ class Query(graphene.ObjectType):
                 )
             )
         )
+
+        # The SPA only pages forward. Cache a bounded window, plus one row so
+        # Relay can still calculate hasNextPage correctly. Deep/alternate
+        # pagination falls back to the normal queryset rather than growing a
+        # large padded cache value.
+        first = args.get("first")
+        after = args.get("after")
+        if (
+            isinstance(first, int)
+            and first > 0
+            and args.get("last") is None
+            and args.get("before") is None
+            and args.get("offset") is None
+        ):
+            try:
+                slice_start = cursor_to_offset(after) + 1 if after else 0
+            except (TypeError, ValueError):
+                return queryset
+
+            if slice_start <= 1000:
+                cache_key = f"graphql:results:page:{after or 'start'}:{first}"
+                cached_page = cache.get(cache_key)
+                if cached_page is not None:
+                    return cached_page
+
+                count_key = "graphql:results:count"
+                total_count = cache.get(count_key)
+                if total_count is None:
+                    total_count = queryset.count()
+                    cache.set(count_key, total_count, config.GRAPHQL_RESULTS_CACHE_TIME)
+
+                page = list(queryset[slice_start : slice_start + first + 1])
+                cached_page = CachedResultPage(
+                    ([None] * slice_start) + page,
+                    total_count=total_count,
+                )
+                cache.set(cache_key, cached_page, config.GRAPHQL_RESULTS_CACHE_TIME)
+                return cached_page
+
+        return queryset
 
     @staticmethod
     def resolve_rounds(root, info, **args):
