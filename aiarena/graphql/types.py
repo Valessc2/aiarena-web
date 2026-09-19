@@ -16,8 +16,8 @@ from django.utils import timezone
 
 import django_filters
 import graphene
-from constance import config
 from avatar.models import Avatar
+from constance import config
 from django_filters import FilterSet, OrderingFilter
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
@@ -509,6 +509,7 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
 
         gen = EloGraphsGenerator(root)
         elo_data = gen._get_elo_data(root.bot, competition.id)
+        round_starts = None
 
         if not elo_data:
             last_updated = None
