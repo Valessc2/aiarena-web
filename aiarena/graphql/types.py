@@ -1393,16 +1393,33 @@ class StatsType(graphene.ObjectType):
     matches_started = graphene.Int()
 
     @staticmethod
-    def resolve_match_count_1h(root, info, **args):
-        return Result.objects.only("id").filter(created__gte=timezone.now() - timedelta(hours=1)).count()
+    def _cached_count(cache_key, queryset):
+        count = cache.get(cache_key)
+        if count is None:
+            count = queryset.count()
+            cache.set(cache_key, count, config.GRAPHQL_STATS_CACHE_TIME)
+        return count
 
-    @staticmethod
-    def resolve_match_count_24h(root, info, **args):
-        return Result.objects.only("id").filter(created__gte=timezone.now() - timedelta(hours=24)).count()
+    @classmethod
+    def resolve_match_count_1h(cls, root, info, **args):
+        return cls._cached_count(
+            "graphql:stats:match-count-1h",
+            Result.objects.filter(created__gte=timezone.now() - timedelta(hours=1)),
+        )
 
-    @staticmethod
-    def resolve_arenaclients(root, info, **args):
-        return User.objects.only("id").filter(type="ARENA_CLIENT", is_active=True).count()
+    @classmethod
+    def resolve_match_count_24h(cls, root, info, **args):
+        return cls._cached_count(
+            "graphql:stats:match-count-24h",
+            Result.objects.filter(created__gte=timezone.now() - timedelta(hours=24)),
+        )
+
+    @classmethod
+    def resolve_arenaclients(cls, root, info, **args):
+        return cls._cached_count(
+            "graphql:stats:arenaclients",
+            User.objects.filter(type="ARENA_CLIENT", is_active=True),
+        )
 
     @staticmethod
     def resolve_random_supporter(root, info, **args):
@@ -1416,19 +1433,25 @@ class StatsType(graphene.ObjectType):
     def resolve_date_time(root, info, **args):
         return timezone.now()
 
-    @staticmethod
-    def resolve_matches_queued(root, info, **args):
-        return Match.objects.filter(
-            result__isnull=True,
-            started__isnull=True,
-        ).count()
+    @classmethod
+    def resolve_matches_queued(cls, root, info, **args):
+        return cls._cached_count(
+            "graphql:stats:matches-queued",
+            Match.objects.filter(
+                result__isnull=True,
+                started__isnull=True,
+            ),
+        )
 
-    @staticmethod
-    def resolve_matches_started(root, info, **args):
-        return Match.objects.filter(
-            result__isnull=True,
-            started__isnull=False,
-        ).count()
+    @classmethod
+    def resolve_matches_started(cls, root, info, **args):
+        return cls._cached_count(
+            "graphql:stats:matches-started",
+            Match.objects.filter(
+                result__isnull=True,
+                started__isnull=False,
+            ),
+        )
 
 
 class AdminStatsPoint(graphene.ObjectType):
