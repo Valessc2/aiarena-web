@@ -296,6 +296,7 @@ CONSTANCE_CONFIG = {
     "TOP10_CACHE_TIME": (180, "How long to cache top10 competition results for"),
     "FULL_LADDER_CACHE_TIME": (10, "How long to cache full live competition rankings for"),
     "BOT_COMP_STATS_CACHE_TIME": (30, "How long to cache live bot competition chart data for"),
+    "GRAPHQL_STATS_CACHE_TIME": (10, "How long to cache live GraphQL site stats for"),
     "NEWS_CACHE_TIME": (300, "How long to cache news for"),
     "GAME_AVAILABLE_CACHE_TIME": (60, "How long to cache NoGameAvailable response for"),
 }
@@ -360,6 +361,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "TOP10_CACHE_TIME",
         "FULL_LADDER_CACHE_TIME",
         "BOT_COMP_STATS_CACHE_TIME",
+        "GRAPHQL_STATS_CACHE_TIME",
         "NEWS_CACHE_TIME",
         "GAME_AVAILABLE_CACHE_TIME",
     ),
