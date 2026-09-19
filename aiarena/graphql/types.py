@@ -9,12 +9,14 @@ from datetime import timedelta
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import CharField, Count, F, IntegerField, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 
 import django_filters
 import graphene
+from constance import config
 from avatar.models import Avatar
 from django_filters import FilterSet, OrderingFilter
 from graphene_django import DjangoConnectionField
@@ -311,7 +313,12 @@ class CompetitionType(DjangoObjectTypeWithUID):
         info,
         **args,
     ):
-        return ladders.get_competition_display_full_rankings(root).calculate_trend(root)
+        cache_key = f"graphql:competition:{root.id}:participants"
+        participants = cache.get(cache_key)
+        if participants is None:
+            participants = ladders.get_competition_display_full_rankings(root).calculate_trend(root)
+            cache.set(cache_key, participants, config.FULL_LADDER_CACHE_TIME)
+        return participants
 
     @staticmethod
     def resolve_wiki_article(
@@ -495,6 +502,11 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
         if competition.statistics_finalized:
             return None
 
+        cache_key = f"graphql:competition:{competition.id}:bot:{root.bot_id}:elo-chart"
+        cached_chart = cache.get(cache_key)
+        if cached_chart is not None:
+            return cached_chart
+
         gen = EloGraphsGenerator(root)
         elo_data = gen._get_elo_data(root.bot, competition.id)
 
@@ -532,18 +544,25 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
                     for r in competition.round_set.order_by("started")
                 ]
 
-        return {
+        chart = {
             "title": "ELO over time",
             "lastUpdated": last_updated,
             "data": {"datasets": datasets},
             "roundStarts": round_starts,
         }
+        cache.set(cache_key, chart, config.BOT_COMP_STATS_CACHE_TIME)
+        return chart
 
     @staticmethod
     def resolve_winrate_chart_data(root, info, **args):
         competition = root.competition
         if competition.statistics_finalized:
             return None
+
+        cache_key = f"graphql:competition:{competition.id}:bot:{root.bot_id}:winrate-chart"
+        cached_chart = cache.get(cache_key)
+        if cached_chart is not None:
+            return cached_chart
 
         gen = EloGraphsGenerator(root)
         data = gen._get_winrate_data(root.bot.id, competition.id)
@@ -566,7 +585,7 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
                 "datalabels": {"align": "center", "anchor": "center"},
             }
 
-        return {
+        chart = {
             "title": "Result vs Match Duration",
             "data": {
                 "labels": labels,
@@ -578,6 +597,8 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
                 ],
             },
         }
+        cache.set(cache_key, chart, config.BOT_COMP_STATS_CACHE_TIME)
+        return chart
 
     @staticmethod
     def resolve_race_matchup(root, info, **args):
