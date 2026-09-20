@@ -3,7 +3,7 @@ import logging
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
-from aiarena.core.models import ArenaClient, Match, MatchParticipation
+from aiarena.core.models import ArenaClient, Bot, Match, MatchParticipation
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,12 @@ class MatchStarter:
         if match.is_already_started:
             logger.warning(f"Match {match.id} failed to start unexpectedly as it was already started.")
             return False
+
+        # Serialize match start with bot zip replacement. UpdateBot takes the
+        # same bot row lock before checking for started, unfinished matches.
+        # Deterministic ordering avoids deadlocks between concurrent starts.
+        participant_bot_ids = MatchParticipation.objects.filter(match_id=match.id).values_list("bot_id", flat=True)
+        list(Bot.objects.select_for_update().filter(id__in=participant_bot_ids).order_by("id").only("id"))
 
         # Avoid starting a match when a participant is not available
         target_match_not_locked_by_bot_data = Q(use_bot_data=False) | Q(
