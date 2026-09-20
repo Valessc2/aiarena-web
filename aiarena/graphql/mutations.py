@@ -264,22 +264,38 @@ class UpdateBot(CleanedInputMutation):
         bot = input_object.bot
         raise_for_access(info, bot)
 
-        if not config.BOT_UPLOADS_ENABLED and getattr(input_object, "bot_zip", None):
+        bot_zip_update = getattr(input_object, "bot_zip", None)
+        if not config.BOT_UPLOADS_ENABLED and bot_zip_update:
             raise BotUploadsDisabled
 
-        for attr, value in input_object.items():
-            if attr in ["bot", "wiki_article"]:
-                continue
-            setattr(bot, attr, value)
+        with transaction.atomic():
+            # Match starts and bot zip replacements share this row lock. This
+            # prevents a match from becoming live between the check below and
+            # replacing the stable bot zip object in storage.
+            bot = Bot.objects.select_for_update().get(pk=bot.pk)
 
-        if input_object.wiki_article is not None:
-            Bot.update_bot_wiki_article(bot, input_object.wiki_article, info.context)
-        try:
-            bot.full_clean()
-            bot.save()
+            if bot_zip_update and Match.objects.filter(
+                matchparticipation__bot=bot,
+                started__isnull=False,
+                result__isnull=True,
+            ).exists():
+                raise ValidationError(
+                    "Bot zip cannot be changed while the bot has a started match without a result."
+                )
 
-        except ValidationError as e:
-            raise ValidationError(join_deep_errors_to_string(e))
+            for attr, value in input_object.items():
+                if attr in ["bot", "wiki_article"]:
+                    continue
+                setattr(bot, attr, value)
+
+            if input_object.wiki_article is not None:
+                Bot.update_bot_wiki_article(bot, input_object.wiki_article, info.context)
+            try:
+                bot.full_clean()
+                bot.save()
+
+            except ValidationError as e:
+                raise ValidationError(join_deep_errors_to_string(e))
 
         return cls(errors=[])
 
