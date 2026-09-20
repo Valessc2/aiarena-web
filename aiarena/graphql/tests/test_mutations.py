@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user
+from django.utils import timezone
 
 import pytest
 from rest_framework.authtoken.models import Token
@@ -790,6 +791,55 @@ class TestUpdateBot(GraphQLTest):
         assert bot.get_wiki_article().current_revision.content == "#1Some Content"
         assert bot.bot_zip != old_bot_zip_hash
         assert bot.bot_data != old_bot_data_hash
+
+    def test_bot_zip_cannot_be_changed_while_bot_has_started_unfinished_match(
+        self, user, bot, other_bot, map, python_zip_file
+    ):
+        match = Match.objects.create(map=map, started=timezone.now())
+        MatchParticipation.objects.create(match=match, participant_number=1, bot=bot)
+        MatchParticipation.objects.create(match=match, participant_number=2, bot=other_bot)
+        old_bot_zip_name = bot.bot_zip.name
+        old_bot_zip_hash = bot.bot_zip_md5hash
+
+        self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={
+                "input": {
+                    "bot": self.to_global_id(BotType, bot.id),
+                    "botZip": None,
+                }
+            },
+            files={"input.botZip": python_zip_file()},
+            expected_errors_like=[
+                "Bot zip cannot be changed while the bot has a started match without a result."
+            ],
+        )
+
+        bot.refresh_from_db()
+        assert bot.bot_zip.name == old_bot_zip_name
+        assert bot.bot_zip_md5hash == old_bot_zip_hash
+
+    def test_non_zip_bot_settings_can_change_while_bot_has_started_unfinished_match(
+        self, user, bot, other_bot, map
+    ):
+        match = Match.objects.create(map=map, started=timezone.now())
+        MatchParticipation.objects.create(match=match, participant_number=1, bot=bot)
+        MatchParticipation.objects.create(match=match, participant_number=2, bot=other_bot)
+
+        self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={
+                "input": {
+                    "bot": self.to_global_id(BotType, bot.id),
+                    "botZipPubliclyDownloadable": True,
+                }
+            },
+        )
+
+        bot.refresh_from_db()
+        assert bot.bot_zip_publicly_downloadable is True
 
     def test_update_bot_invalid_bot_zip(self, user, bot, invalid_python_zip_file):
         """
