@@ -87,6 +87,10 @@ export default function RankingsSection({ competition }: RankingsSectionProps) {
               }
               elo
               winPerc
+              winCount
+              lossCount
+              tieCount
+              crashCount
               trend
               id
             }
@@ -274,6 +278,58 @@ export default function RankingsSection({ competition }: RankingsSectionProps) {
 
           const val = original.winPerc ?? 0;
           return `${Math.trunc(val)} %`;
+        },
+        meta: { priority: 3 },
+        size: 90,
+      }),
+
+      columnHelper.display({
+        id: "winCount",
+        header: "Wins",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const original = row.original;
+          if (original.__kind !== "participant") return null;
+          return original.winCount ?? 0;
+        },
+        meta: { priority: 3 },
+        size: 70,
+      }),
+
+      columnHelper.display({
+        id: "lossCount",
+        header: "Losses",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const original = row.original;
+          if (original.__kind !== "participant") return null;
+          return original.lossCount ?? 0;
+        },
+        meta: { priority: 3 },
+        size: 80,
+      }),
+
+      columnHelper.display({
+        id: "tieCount",
+        header: "Ties",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const original = row.original;
+          if (original.__kind !== "participant") return null;
+          return original.tieCount ?? 0;
+        },
+        meta: { priority: 3 },
+        size: 70,
+      }),
+
+      columnHelper.display({
+        id: "crashCount",
+        header: "Crashes",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const original = row.original;
+          if (original.__kind !== "participant") return null;
+          return original.crashCount ?? 0;
         },
         meta: { priority: 3 },
         size: 90,
